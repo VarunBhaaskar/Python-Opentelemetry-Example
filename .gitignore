@@ -1,0 +1,5 @@
+**/logs
+test.py
+.env
+compose.env
+__pycache__/
