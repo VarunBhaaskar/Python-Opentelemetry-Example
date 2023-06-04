@@ -5,6 +5,8 @@ import requests
 import logging
 from logging.config import dictConfig
 import os
+import asyncio
+import random
 from dotenv import load_dotenv
 
 os.environ['OTEL_PYTHON_LOG_CORRELATION'] = 'true'
@@ -205,6 +207,7 @@ async def cosmos(response: Response,category:str = "entertainment"):
             res = requests.get(newsurl)
         if res.status_code == 200:
             logger.info("Inshorts API returned 200 status code", extra={'errorcode':'000'})
+            response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
             res = res.json()
             return res
         else:
@@ -215,6 +218,44 @@ async def cosmos(response: Response,category:str = "entertainment"):
         response.status_code = status.HTTP_417_EXPECTATION_FAILED
         return {"message":f"Exception occured. {traceback.format_exc()}"}
 
+@app.get("/exchange")
+async def exchange(response: Response):
+    url = "https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v1/accounting/od/rates_of_exchange?fields=country_currency_desc,exchange_rate,%20record_date&filter=record_date:gte:2023-01-01"
+    try:
+        logger.info("Calling Exchange rates API API", extra={'errorcode':'000'})
+        with mtracer.start_as_current_span("Make API call to news API"):
+            res = requests.get(url)
+        if res.status_code == 200:
+            logger.info("Exchanges API returned 200 status code", extra={'errorcode':'000'})
+            response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+            res = res.json()
+            return res
+        else:
+            logger.error(f"Exchanges API returned {res.status_code} status code", extra={'errorcode':'001'})
+            return {"message": f"Exchanges API returned {res.status_code} status code"}
+    except:
+        logger.error(traceback.format_exc(), extra={'errorcode':'001'})
+        response.status_code = status.HTTP_417_EXPECTATION_FAILED
+        return {"message":f"Exception occured. {traceback.format_exc()}"}
+
+
+async def call_sleep(n):
+    asyncio.sleep(n)
+
+@app.get("/business")
+async def business(response: Response):
+    try:
+        n = random.randint(0,5)
+        logger.info("Calling random sleep function", extra={'errorcode':'000'})
+        with mtracer.start_as_current_span("Calling an External/time consuming function"):
+            await call_sleep(n)
+        logger.error(f"The file delivered but breached SLA", extra={'errorcode':'001'})
+        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        return {"message": f"Breached SLA"}
+    except:
+        logger.error(traceback.format_exc(), extra={'errorcode':'001'})
+        response.status_code = status.HTTP_417_EXPECTATION_FAILED
+        return {"message":f"Exception occured. {traceback.format_exc()}"}
 
 # if __name__ == "__main__":
 #    uvicorn.run("main:app", host="0.0.0.0", port=12000)

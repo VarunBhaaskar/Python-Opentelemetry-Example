@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pythontelemetry-deployment
+  labels:
+    app: pythontelemetry
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: pythontelemetry
+  template:
+    metadata:
+      labels:
+        app: pythontelemetry
+    spec:
+      containers:
+        - name: pythontelemetryexample
+          image: grafanapocacr.azurecr.io/pythontelemetryexample:v2.0
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 12000
+          env:
+            - name: tracingendpoint
+              value:
+
+            - name: metricsendpoint
+              value: flaskapi
+
+            - name: sqlserver
+              value: grafanapocsqlserver.database.windows.net
+
+            - name: sqldatabase
+              value: grafanapoc
+
+            - name: sqlusername
+              value: grafanapoc
+
+            - name: sqlpassword
+              value: 
+
+            - name: sqldriver
+              value: '{ODBC Driver 18 for SQL Server}'
+
+            - name: pghost
+              value: 'grafanapov-sqlpostgress.postgres.database.azure.com port=5432'
+            
+            - name: pgdbname
+              value: postgres
+
+            - name: pguser
+              value: 'grafanapovpostgress'
+            
+            - name: pgpassword
+              value:
+
+            - name: pgsslmode
+              value: require
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pythontelemetry-service
+spec:
+  ports:
+  - port: 8080
+    protocol: TCP
+    targetPort: 5000
+  selector:
+    app: pythontelemetry
+  type: LoadBalancer
