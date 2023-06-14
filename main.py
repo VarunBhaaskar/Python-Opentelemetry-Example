@@ -1,5 +1,6 @@
-from fastapi import FastAPI, Response, status
+from fastapi import FastAPI, Response, status, Request
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 import traceback
 import requests
 import logging
@@ -8,6 +9,8 @@ import os
 import asyncio
 import random
 from dotenv import load_dotenv
+import json
+import time
 
 os.environ['OTEL_PYTHON_LOG_CORRELATION'] = 'true'
 
@@ -107,7 +110,7 @@ if not traceingEndpoint:
 if not metricsEndpoint:
     logger.warn('Metrics exporter endpoint not available',extra= {'errorcode':'002'})
 
-resource = Resource(attributes={"service.name": "pythontelemtryexample","service.application":"AZA"})
+resource = Resource(attributes={"service.name": "pythontelemetryexample","service.application":"AZA"})
 tracer = TracerProvider(resource=resource)
 trace.set_tracer_provider(tracer)
 tracer.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=traceingEndpoint)))
@@ -120,7 +123,7 @@ provider = MeterProvider(metric_readers=[reader], resource=resource)
 metrics.set_meter_provider(provider)
 
 
-app = FastAPI(title="pythontelemtryexample")
+app = FastAPI(title="pythontelemetryexample")
 app.add_middleware(
     CORSMiddleware,
     allow_origins="*",
@@ -178,7 +181,7 @@ async def cosmos(response: Response):
         return {"message":f"Exception occured. {traceback.format_exc()}"}
     
 @app.get("/AzureFunctions")
-async def cosmos(response: Response):
+async def azureFunctions(request: Request,response: Response):
     functionsHelloURL = "https://rediscacheupdater.azurewebsites.net/api/SayHello"
     try:
         with mtracer.start_as_current_span("Make API call to Azure Functions API"):
@@ -198,7 +201,7 @@ async def cosmos(response: Response):
     
 
 @app.get("/news")
-async def cosmos(response: Response,category:str = "entertainment"):
+async def news(response: Response,category:str = "entertainment"):
     newsurl = f"https://inshorts.deta.dev/news?category={category}"
 
     try:
@@ -208,7 +211,7 @@ async def cosmos(response: Response,category:str = "entertainment"):
         if res.status_code == 200:
             logger.info("Inshorts API returned 200 status code", extra={'errorcode':'000'})
             response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-            res = res.json()
+            res = res.text
             return res
         else:
             logger.error(f"Inshorts API returned {res.status_code} status code")
@@ -218,12 +221,33 @@ async def cosmos(response: Response,category:str = "entertainment"):
         response.status_code = status.HTTP_417_EXPECTATION_FAILED
         return {"message":f"Exception occured. {traceback.format_exc()}"}
 
+@app.get("/me")
+async def exchange(response: Response,request: Request):
+    try:
+        url = "https://httpbin.test.k6.io/get"
+        logger.info("Calling azure functions", extra={'errorcode':'000'})
+        with mtracer.start_as_current_span("Make call to azure functions"):
+            res = requests.get(url)
+        if res.status_code == 200:
+            logger.info("Azure functions say hello fn API returned 200 status code", extra={'errorcode':'000'})
+            response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+            res = res.json()
+            return res
+        else:
+            logger.error(f"Exchanges API returned {res.status_code} status code", extra={'errorcode':'001'})
+            return {"message": f"Exchanges API returned {res.status_code} status code"}
+    except:
+        logger.error(traceback.format_exc(), extra={'errorcode':'001'})
+        response.status_code = status.HTTP_417_EXPECTATION_FAILED
+        return {"message":f"Exception occured. {traceback.format_exc()}"}
+
+
 @app.get("/exchange")
 async def exchange(response: Response):
-    url = "https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v1/accounting/od/rates_of_exchange?fields=country_currency_desc,exchange_rate,%20record_date&filter=record_date:gte:2023-01-01"
+    url =f"https://s3.amazonaws.com/data-production-walltime-info/production/dynamic/walltime-info.json?now=1528962473468.679.0000000000873"
     try:
-        logger.info("Calling Exchange rates API API", extra={'errorcode':'000'})
-        with mtracer.start_as_current_span("Make API call to news API"):
+        logger.info("Calling public Walltime API", extra={'errorcode':'000'})
+        with mtracer.start_as_current_span("Calling public Walltime API"):
             res = requests.get(url)
         if res.status_code == 200:
             logger.info("Exchanges API returned 200 status code", extra={'errorcode':'000'})
@@ -239,8 +263,9 @@ async def exchange(response: Response):
         return {"message":f"Exception occured. {traceback.format_exc()}"}
 
 
+
 async def call_sleep(n):
-    asyncio.sleep(n)
+    time.sleep(n)
 
 @app.get("/business")
 async def business(response: Response):
@@ -248,10 +273,10 @@ async def business(response: Response):
         n = random.randint(0,5)
         logger.info("Calling random sleep function", extra={'errorcode':'000'})
         with mtracer.start_as_current_span("Calling an External/time consuming function"):
-            await call_sleep(n)
+            call_sleep(n)
         logger.error(f"The file delivered but breached SLA", extra={'errorcode':'001'})
         response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-        return {"message": f"Breached SLA"}
+        return {"message": f"Breached SLA after {n} secs"}
     except:
         logger.error(traceback.format_exc(), extra={'errorcode':'001'})
         response.status_code = status.HTTP_417_EXPECTATION_FAILED
