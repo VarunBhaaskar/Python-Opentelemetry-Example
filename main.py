@@ -54,7 +54,7 @@ with open('./logs/logfile.log','a'):
 log_format = f"""timestamp:%(asctime)s labels:{{application:AZA, env:DEV}} log.file.path:{logpath} filename:%(filename)s process.thread.name:%(threadName)s functionname:%(funcName)s \
 loggername:%(name)s level:%(levelname)s errorcode:%(errorcode)s line:%(lineno)d SpanID:%(otelSpanID)s \
 TraceID:%(otelTraceID)s Service:%(otelServiceName)s TraceSample:%(otelTraceSampled)s \
-service.name:pythontelemtryexample service.version:1 service.type:test message:%(message)s"""
+service.name:pythontelemetryexample service.version:1 service.type:test message:%(message)s"""
 
 LOGGING_CONFIG = {
     'version':1 ,
@@ -110,7 +110,8 @@ if not traceingEndpoint:
 if not metricsEndpoint:
     logger.warn('Metrics exporter endpoint not available',extra= {'errorcode':'002'})
 
-resource = Resource(attributes={"service.name": "pythontelemetryexample","service.application":"AZA"})
+resource = Resource(attributes={"service.name": "pythontelemetryexample","service.application":"AZA","application.name":"pythontelemetryexample",
+                                "application.id":"AZA"})
 tracer = TracerProvider(resource=resource)
 trace.set_tracer_provider(tracer)
 tracer.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=traceingEndpoint)))
@@ -281,6 +282,24 @@ async def business(response: Response):
         logger.error(traceback.format_exc(), extra={'errorcode':'001'})
         response.status_code = status.HTTP_417_EXPECTATION_FAILED
         return {"message":f"Exception occured. {traceback.format_exc()}"}
+
+
+@app.get("/callgolang")
+async def getgotelemetryexample(response: Response):
+    try:
+        url = os.getenv('gotelemetryexampleurl')
+        logger.info("Calling golang example", extra={'errorcode':'000'})
+        with mtracer.start_as_current_span("Make call to azure functions"):
+            res = requests.get(url)
+        if res.status_code == 200:
+            logger.info("golang API returned 200 status code", extra={'errorcode':'000'})
+            res = res.text*2
+            return res
+    except:
+        logger.error(traceback.format_exc(), extra={'errorcode':'001'})
+        response.status_code = status.HTTP_417_EXPECTATION_FAILED
+        return {"message":f"Exception occured. {traceback.format_exc()}"}
+
 
 # if __name__ == "__main__":
 #    uvicorn.run("main:app", host="0.0.0.0", port=12000)
