@@ -289,7 +289,7 @@ async def getgotelemetryexample(response: Response):
     try:
         url = os.getenv('gotelemetryexampleurl')
         logger.info("Calling golang example", extra={'errorcode':'000'})
-        with mtracer.start_as_current_span("Make call to azure functions"):
+        with mtracer.start_as_current_span("Make call to golang API"):
             res = requests.get(url)
         if res.status_code == 200:
             logger.info("golang API returned 200 status code", extra={'errorcode':'000'})
@@ -305,7 +305,7 @@ async def getgotelemetryexampleerror(response: Response):
     try:
         url = os.getenv('gotelemetryexampleurlerror')
         logger.info("Calling golang example with error", extra={'errorcode':'000'})
-        with mtracer.start_as_current_span("Make call to azure functions"):
+        with mtracer.start_as_current_span("Make call to golang API"):
             res = requests.get(url)
         if res.status_code == 200:
             logger.info("golang API returned 200 status code", extra={'errorcode':'000'})
