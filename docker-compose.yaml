@@ -3,7 +3,7 @@ services:
 
   # python web server application
   python-server:
-    image: varun1999/pythontelemetryexample:v4.0
+    image: varun1999/pythontelemetryexample:v4.1
     restart: always
     env_file:
     - compose.env

@@ -300,6 +300,26 @@ async def getgotelemetryexample(response: Response):
         response.status_code = status.HTTP_417_EXPECTATION_FAILED
         return {"message":f"Exception occured. {traceback.format_exc()}"}
 
+@app.get("/goerror")
+async def getgotelemetryexampleerror(response: Response):
+    try:
+        url = os.getenv('gotelemetryexampleurlerror')
+        logger.info("Calling golang example with error", extra={'errorcode':'000'})
+        with mtracer.start_as_current_span("Make call to azure functions"):
+            res = requests.get(url)
+        if res.status_code == 200:
+            logger.info("golang API returned 200 status code", extra={'errorcode':'000'})
+            res = res.text*2
+            return res
+        else:
+            logger.error(f"golang api returned {res.status_code} status code")
+            response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+            return {"message":f"golang api returned {res.status_code} status code"}
+            
+    except:
+        logger.error(traceback.format_exc(), extra={'errorcode':'001'})
+        response.status_code = status.HTTP_417_EXPECTATION_FAILED
+        return {"message":f"Exception occured. {traceback.format_exc()}"}
 
 # if __name__ == "__main__":
 #    uvicorn.run("main:app", host="0.0.0.0", port=12000)
